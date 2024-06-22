@@ -8,7 +8,10 @@ from langchain.memory import ConversationBufferMemory
 from langchain.chains import LLMChain, ConversationalRetrievalChain
 from langchain_openai import ChatOpenAI
 from htmlTemplates import css, bot_template, user_template
-from transformers import pipeline
+import pathlib
+import textwrap
+import google.generativeai as genai
+import config
 
 def get_pdf_text(pdf_docs):
     text = ""
@@ -18,10 +21,17 @@ def get_pdf_text(pdf_docs):
             text += page.extract_text()
     return text
 
+# def generate_summary(raw_text):
+#     summarizer = pipeline("summarization", model="facebook/bart-large-cnn")
+#     summary = summarizer(raw_text, max_length=1000, min_length=30, do_sample=False)
+#     return summary[0]['summary_text']
+
 def generate_summary(raw_text):
-    summarizer = pipeline("summarization", model="facebook/bart-large-cnn")
-    summary = summarizer(raw_text, max_length=1000, min_length=30, do_sample=False)
-    return summary[0]['summary_text']
+    genai.configure(api_key=config.GOOGLE_API_KEY)
+    prompt = "Kindly generate a summary for the following text:\n\n" + raw_text  
+    model = genai.GenerativeModel('gemini-1.5-flash')
+    response = model.generate_content(prompt)
+    return response.text
 
 def get_text_chunks(raw_text):
     text_splitter = CharacterTextSplitter(separator="\n", chunk_size=1000, chunk_overlap=200, length_function=len)
@@ -92,7 +102,7 @@ def main():
             raw_text = get_pdf_text(pdf_docs)
             pdf_reader = PdfReader(pdf_docs[0])  # Assuming we're reading the first document
             num_pages = len(pdf_reader.pages)
-
+            st.write("<h1 style='text-align: center;'>Page Navigation</h1>", unsafe_allow_html=True)
             page_number = st.number_input("Enter page number", min_value=1, max_value=num_pages, value=1)
             st.write(f"Page {page_number}:")
             st.write(pdf_reader.pages[page_number - 1].extract_text())
